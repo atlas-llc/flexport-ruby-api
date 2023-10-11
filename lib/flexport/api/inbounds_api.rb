@@ -1,0 +1,640 @@
+=begin
+#Logistics API
+
+## Getting Started  Welcome to the API reference for the Logistics API.  The Logistics API provide access to the logistics network that powers all of our e-commerce operations, such as order fulfillment, order returns, freight, and parcel.  Build using our APIs to create custom applications and integrations, and retrieve data from your account.  The Logistics API is based on the REST standard, and follows the OpenAPI 3 specification.  You can access the Logistics API via one of the following following endpoints:  | Tenant                  | Base URL for REST Endpoints       | |-------------------------|-----------------------------------| | Production              | https://logistics-api.flexport.com | | Sandbox                 | coming soon                       |  To start using the Logistics API, you must have an active [Flexport Portal](https://portal.flexport.com) account. Sign up [here](https://login.deliverr.com/signup).  To inbound physical inventory, ship orders, process returns or buy parcel labels, you'll also need to set up a billing account.  ## Account Type  We believe there are two primary account types that will use the Logistics API.  | Account type             | Meaning within the API reference                                              | |--------------------------|-------------------------------------------------------------------------------| | You are a merchant if... | You will use the API to develop an integration for your own business or shop. | | You are a partner if...  | You will use the API to develop an application to serve your own customers.   |  ## Account Creation  Create a free [Flexport Portal](https://portal.flexport.com) account. Complete the questions to create your account, and don't forget to add your **business name**. When asked to create a catalog, you can select _\"I'm not selling online yet\"_.  - You can access the <a href=\"#tag/Products\">Products</a>, <a href=\"#tag/Webhooks\">Webhooks</a> and <a href=\"#tag/Reports\">Reports</a> API immediately regardless of billing status. - To use the <a href=\"#tag/Parcels\">Parcels</a> or <a href=\"#tag/Returns\">Returns</a> API, your account must meet certain criteria. To inquire, submit a [ticket](https://support.portal.flexport.com/hc/en-us/requests/new). - All other APIs require setting up [billing](https://support.portal.flexport.com/hc/en-us/articles/115003185313-View-Billing-in-the-Seller-Portal) in the Flexport Seller Portal.  ## Authentication and Authorization  To use the API, you will need an access token.  Each access token carries scopes with it.  This allows you to create one access token to access products, and another one to access orders, for example.  ### Creating Access Tokens  There are two ways to request an access token: 1. Using the UI in [Seller Portal -> Settings -> API Tokens](https://sellerportal.deliverr.com/settings/api-tokens).   1. Using the API as described [here](#tag/OAuth/operation/AuthorizationRedirect)  You must be an Administrator of your organization to manage access tokens.  Once issued, access tokens do not expire unless revoked by the Administrator.  ### Partner Access  If you wish to develop an application that could be used by more than one merchant, reach out to us to request a unique client ID.  Your application will receive callbacks with the authorization code whenever a merchant authorizes it using the [OAuth authorization_code flow](#tag/OAuth/operation/AuthorizationRedirect).  Provide the following: - Detailed description of your application - Callback URI where your application will be running to receive authorization codes  ### Migrating from Deliverr API  You must request new access tokens as described above when migrating from Deliverr API.  # Migration Guides  The Logistics API is the future hub of all API development. All future services will be added to the Logistics API family, and use its authentication, common objects, and standards. We have prepared this guide to help our customers when migrating from the [Deliverr API V1](https://api.deliverr.com/documentation/v1/spec) to the [Logistics API](https://logistics-api.deliverr.com/logistics/api/unstable/documentation/spec).  Here are the key differences between the two APIs at a high level:  | Difference                   | Logistics API version 2023-04        |       Deliverr API version 1.0.0     | |------------------------------|--------------------------------------|--------------------------------------| | OAuth 2.0, [RFC6749](https://www.rfc-editor.org/rfc/rfc6749) compliant | Yes | No | | Release schedule             | Every 3 months | Ad-hoc |  A handful of identifiers have been renamed or added in the Logistics API. Refer to the tables, like the one below, in each of the following guides.  | Changes in    | Deliverr API      | Logistics API      | |---------------|-------------------|--------------------| | All resources | productId (DSKU)  | logisticsSku       |  ## Inbounds  | Changes in    | Deliverr API           | Logistics API      | |---------------|------------------------|--------------------| | All resources | productId              | logisticsSku       | | Inbounds      | shippingPlan           | shipment           | | Inbounds      | externalShippingPlanId | N/A                | | Inbounds      | destination            | N/A                | | Inbounds      | caseQuantity           | N/A                |  In the Logistics API, inventory inbounding has been simplified and a number of new endpoints have been added. Refer to the <a href=\"#tag/Inbounds\">Inbounds</a> reference for additional details.  Key differences between the API are highlighted below: 1. Shipments can be read individually by the `id` of the shipment or as a list by specifying a list of ids via the `shipmentIds` query parameter 2. `logisticsSku` replaces `productId` as the identifier for the product being inbounded 3. When creating a shipment, the fields `externalShippingPlanId`, `destination` and `caseQuantity` are no longer supported 4. You cannot retrieve a shipment by an \"external\" `shippingId`. 5. Prep services such as box content labels can be required when creating a shipment 6. The GET labels endpoint in the Deliverr API has been replaced by an endpoint to request an expanded set of documents for the shipment (<a href=\"#tag/Inbounds/operation/GetTransferDocumentV2\">here</a>), which includes box content labels, shipping labels and bill of landing.  ## Products  | Changes in    | Deliverr API      | Logistics API      | |---------------|-------------------|--------------------| | All resources | productId         | logisticsSku       | | Product       | msku              | merchantSku        | | Product       | externalProductId | N/A                | | Inventory     | availableUnits    | available          | | Inventory     | N/A               | onHand             | | Inventory     | N/A               | unavailable        |  A few fundamental changes:  - It is no longer necessary to link an alias to a product before use, as linking functionality is optional - For placing fulfillment orders, use `logisticsSku` instead of `externalProductId` in the list of **lineItems** - In the seller portal, your existing `externalProductId` mapping under the aliases section of a Product Detail page as \"Deliverr API\" will not be used in the Logistics API and will remain unchanged - You cannot update a product's dimensions (`height`, `length`, `width`, `weight`), units (lb/kg, in/cm), or category via the API  The <a href=\"#tag/Products/operation/GetInventory\">retrieve inventory</a> endpoint response contains a few new fields.  The <a href=\"#tag/Products/operation/GetWarehouseDetails\">retrieve warehouse details</a> endpoint is a POST request instead of a GET. Instead of passing a list of `productId` in the `productIds` query parameter, you will now send a body in the following JSON format:  <!-- TODO: update all endpoints to use logisticsSku instead of logisticsSKU and update all fragments named SKU to sku per the codex. --> ```json {   \"logisticsSKUs\": [     \"DSKU1\",     \"DSKU2\",     \"DSKU3\"   ] } ```  ## Bundles  The bundle endpoints remain semantically similar between the Deliverr API and the Logistics API. However, the bundle creation flow has changed between the APIs. The order endpoints in the Logistics API do not support fulfilling orders by `bundleId`. Merchants who wish to fulfill bundle orders in the logistics API have two options: - You manage the mapping of bundles to their definitions in your systems, which is an array of `{ logisticsSku, quantity }`. - You define bundles via the API or the Seller Portal. Use the GetBundle endpoint to retrieve the bundle definition.  In both cases, you must use the `logisticsSku` and its total quantity when <a href=\"#tag/Orders/operation/CreateOrder\">creating an order</a>.  The following operations no longer exist in the Logistics API.  | Deprecated Endpoints            | |---------------------------------| | PATCH [LinkAliasToBundle](https://api.deliverr.com/documentation/v1/spec#tag/Bundles/operation/LinkAliasToBundle) | | PATCH [UnlinkAliasFromBundles](https://api.deliverr.com/documentation/v1/spec#tag/Bundles/operation/UnlinkAliasFromBundles) | | GET [GetBundleByExternalBundleId](https://api.deliverr.com/documentation/v1/spec#tag/Bundles/operation/GetBundleByExternalBundleId) |  ## Orders  | Changes in endpoint           | Deliverr API      | Logistics API          | |-------------------------------|-------------------|------------------------| | Create order                  | externalProductId | logisticsSku           | | Create order                  | orderShipmentTime | promisedShipByTime     | | Create order                  | orderDeliverTime  | promisedDeliveryByTime | | Create order                  | shipToAddress     | address                | | Create order                  | deliverDays       | deliveryDays           | | Create order                  | N/A               | packingSlipUrl         | | Create order                  | N/A               | duties                 | | Create order                  | createdAt         | N/A                    | | Create order                  | updatedAt         | N/A                    | | Create order                  | orderCreationTime | N/A                    |  The response payload for getting an order’s information has now changed. See the <a href=\"#tag/Orders/operation/GetOrder\">retrieve order</a> response.  ## Reports  Beyond changes to the URIs, the report endpoints are a one-to-one mapping between the Deliverr API and the Logistics API.  <!--  ## Parcels & Parcel Integration Placeholder: to be completed by the domain team -->  <!--  ## Returns Placeholder: to be completed by the domain team -->  ## Webhooks  Your webhook subscriptions must be recreated using the <a href=\"#tag/Webhooks/operation/CreateWebhook\">create webhook</a> endpoint.  # Common Resources  Besides following the OpenAPI 3.0 specification, below is a list of common resources and standards shared across the APIs.  ## Headers  The Logistics API makes use of the following custom HTTP headers. <!--  TODO: the generated OpenAPI specs do not contain header info for any of the endpoints, which is a gap in the documentation. https://github.com/Shopify/deliverr-issues/issues/5825 -->  | Header field name                | in request | in response | description | |----------------------------------|------------|-------------|-------------| | `x-correlation-id`               | no         | yes         | UUID v4 tied to a request | | `idempotency-key`                | yes        | no          | Can be any string, use for making POST or PATCH requests fault tolerant | | `idempotent-replayed`            | no         | yes         | If included in the response, indicates a stored value was used to replay the request |   ## Versioning  The Logistics API uses date based versioning for releases. Versions are declared explicitly in the Logistics API URI with a format of `/logistics/api/{api_version}/{endpoint}`. Stable releases follow the format of `yyyy-mm`. Experimental releases have an API version of `unstable`. For example:  ``` /logistics/api/2023-04/orders /logistics/api/unstable/orders ```  # Change Log  ## unstable  The \"unstable\" version contains code experimental changes, developer previews, and new features. However, endpoints can always change and may update with breaking changes without notice.  ## 2023-04  - Initial public beta release of the Logistics API  # Errors When an API error occurs, the HTTP response includes a three-digit HTTP status code with additional information returned as a <a href=\"https://www.rfc-editor.org/rfc/rfc7807\">problem+json</a> object, for example: ``` HTTP/1.1 404 Not Found Content-Type: application/problem+json Content-Language: en  {  \"type\": \"https://logistics-api.flexport.com/logistics/api/2023-04/documentation/spec#section/Errors/404-Not-Found\",  \"title\": \"Not Found\",  \"detail\": \"Cannot find order 49201824029\",  \"instance\": \"92e04577-c56b-47b9-b075-62096165a0ce\", } ``` In addition to the three-digit HTTP status code, some errors carry a six-digit error code   that provides additional detail about the specific error condition.  For example `405004` error code  refers to `Invalid scopes` and is documented [here](#section/Errors/405004-Invalid-scopes).  ## 400 Bad Request Bad Request.  #### Possible Causes - Incorrect HTTP method used. - Non-existent URL path used. - Malformed syntax in the request. - Missing a required parameter. - Input on the request did not pass validation. - The resource to be modified has moved into a state that is no longer valid.  #### Possible Solutions - Retry the request after correcting errors in the request and confirming it's valid.  - Verify if the resource to be modified exists and is in a valid state.  ## 401 Unauthorized The access token is invalid.  #### Possible Causes - No valid access token provided.  #### Possible Solutions - Check to ensure that the access token is valid.  ## 403 Forbidden Access token does not have permission to perform the requested operation.  #### Possible Causes - Access token provided is not authorized to perform the requested operation.  #### Possible Solutions - Check to ensure that the scope of the access token is sufficient to perform the requested operation. - Create and use a new access token that has the required scope.  ## 404 Not Found The requested object cannot be found.  #### Possible Causes - The identifier pointing to the request is incorrect.   - The specified resource is no longer available. - You do not have access to the specified resource.  #### Possible Solutions - Check that the specified resource exists.  ## 409 Conflict The object with the same identifier already exists.  #### Possible Causes - Resource was already created, but the request is attempting to create it again.  #### Possible Solutions - Check that the resource identifier is unique. - Use [idempotency-key](#section/Common-Resources/Headers) when creating resources.   ## 422 Unprocessable Content The request is malformed.    #### Possible Causes - Request contains invalid data or syntax errors.  #### Possible Solutions - Check the payload for inconsistencies or errors.  ## 429 Too Many Requests Too many requests in a given amount of time (\"rate limiting\").  #### Possible Causes - Too many requests were made in a short period of time that exceed the API rate limit allowed.  #### Possible Solutions - Try again later.  We recommend an exponential backoff of your requests. - Refer to the `Retry-After` header for the number of seconds to wait before retrying the request.  ## 423 Locked Access to the Logistics API is locked and denied.  #### Possible Causes - Flexport Portal account may be frozen and/or deactivated.  #### Possible Solutions - Contact <a href=\"https://support.portal.flexport.com/hc/en-us/articles/1500009448562-Contacting-the-Support-team\">Flexport support</a>.  ## 5XX Internal Server Error An internal error has occurred while processing the request (these are uncommon).  #### Possible Causes - The request is incorrect and cannot be processed. - The server is currently unable to handle the request.  #### Possible Solutions - Verify that the request is correct and retry it. - Retry the request at a later time.  ## 405001 Invalid redirect URI The redirect URI specified as a callback for OAuth authorization is invalid.  #### Possible Causes - Redirect URI must be `https://deliverr.com` if `identity` is used as the client ID. - Redirect URI must be exactly the same URI as the one registered with the client ID provided.  #### Possible Solutions - Verify that the redirect URI is correct.  ## 405002 Invalid client_id Invalid client_id.  #### Possible Causes - The client ID provided is invalid.  The client ID must be `identity` or a valid client ID registered with Flexport.  #### Possible Solutions - Submit a valid client ID.  ## 405003 Missing scopes Scopes were not provided.  #### Possible Causes - Scope parameter was not provided in the request.  #### Possible Solutions - Check to ensure the request includes scopes.  For all available scopes see [OAuth](#tag/OAuth/operation/AuthorizationRedirect).  ## 405004 Invalid scopes Some of the scopes provided are invalid.  For all available scopes see [OAuth](#tag/OAuth/operation/AuthorizationRedirect).  #### Possible Causes - Scope parameter was provided in the request, but the scope values are invalid. - Incorrect separator was used to separate scopes.   #### Possible Solutions - Check to ensure that scopes requested are known and valid.  For all available scopes see [OAuth](#tag/OAuth/operation/AuthorizationRedirect).  ## 405005 Invalid code The one-time authorization code provided is invalid, expired, or has already been used.  #### Possible Causes - Authorization code has already been used. - Authorization code has expired because it was requested longer than a few minutes ago. - Authorization code is invalid.  #### Possible Solutions - Restart the [OAuth flow](#tag/OAuth/operation/AuthorizationRedirect) to receive a new authorization code. ## 407001 Invalid order status Operation cannot proceed, because order is in a state that does not allow it.  #### Possible Causes - Order retry was requested, however the original order was successful.  #### Possible Solutions - Ensure that the order is in the correct state, e.g. if order is being retried the order state should be `Canceled`. 
+
+The version of the OpenAPI document: unstable
+
+Generated by: https://openapi-generator.tech
+OpenAPI Generator version: 7.0.1
+
+=end
+
+require 'cgi'
+
+module Flexport
+  class InboundsApi
+    attr_accessor :api_client
+
+    def initialize(api_client = ApiClient.default)
+      @api_client = api_client
+    end
+    # Create a shipment
+    # Create an inbounding shipment.
+    # @param create_inbound_shipment_request_v4 [CreateInboundShipmentRequestV4] 
+    # @param [Hash] opts the optional parameters
+    # @return [InboundShipmentResponseV4]
+    def create_inbounding_shipment_v4(create_inbound_shipment_request_v4, opts = {})
+      data, _status_code, _headers = create_inbounding_shipment_v4_with_http_info(create_inbound_shipment_request_v4, opts)
+      data
+    end
+
+    # Create a shipment
+    # Create an inbounding shipment.
+    # @param create_inbound_shipment_request_v4 [CreateInboundShipmentRequestV4] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(InboundShipmentResponseV4, Integer, Hash)>] InboundShipmentResponseV4 data, response status code and response headers
+    def create_inbounding_shipment_v4_with_http_info(create_inbound_shipment_request_v4, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.create_inbounding_shipment_v4 ...'
+      end
+      # verify the required parameter 'create_inbound_shipment_request_v4' is set
+      if @api_client.config.client_side_validation && create_inbound_shipment_request_v4.nil?
+        fail ArgumentError, "Missing the required parameter 'create_inbound_shipment_request_v4' when calling InboundsApi.create_inbounding_shipment_v4"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(create_inbound_shipment_request_v4)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'InboundShipmentResponseV4'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.create_inbounding_shipment_v4",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#create_inbounding_shipment_v4\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get all quotes that have been successfully bought for a shipment
+    # Get result of asynchronous request to buy quotes. Returns quotes once asynchronous request is complete.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [QuoteResultResponse]
+    def get_inbounding_shipment_quote_purchase_result(shipment_id, opts = {})
+      data, _status_code, _headers = get_inbounding_shipment_quote_purchase_result_with_http_info(shipment_id, opts)
+      data
+    end
+
+    # Get all quotes that have been successfully bought for a shipment
+    # Get result of asynchronous request to buy quotes. Returns quotes once asynchronous request is complete.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [Array<(QuoteResultResponse, Integer, Hash)>] QuoteResultResponse data, response status code and response headers
+    def get_inbounding_shipment_quote_purchase_result_with_http_info(shipment_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.get_inbounding_shipment_quote_purchase_result ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.get_inbounding_shipment_quote_purchase_result"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/quotes/buy'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'shippingOption'] = opts[:'shipping_option'] if !opts[:'shipping_option'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'QuoteResultResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.get_inbounding_shipment_quote_purchase_result",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#get_inbounding_shipment_quote_purchase_result\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get quotes for a shipment
+    # Get result of asynchronous request for quotes. Returns quotes once asynchronous request is complete.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [QuoteResultResponse]
+    def get_inbounding_shipment_quote_result(shipment_id, opts = {})
+      data, _status_code, _headers = get_inbounding_shipment_quote_result_with_http_info(shipment_id, opts)
+      data
+    end
+
+    # Get quotes for a shipment
+    # Get result of asynchronous request for quotes. Returns quotes once asynchronous request is complete.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [Array<(QuoteResultResponse, Integer, Hash)>] QuoteResultResponse data, response status code and response headers
+    def get_inbounding_shipment_quote_result_with_http_info(shipment_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.get_inbounding_shipment_quote_result ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.get_inbounding_shipment_quote_result"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/quotes'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'shippingOption'] = opts[:'shipping_option'] if !opts[:'shipping_option'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'QuoteResultResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.get_inbounding_shipment_quote_result",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#get_inbounding_shipment_quote_result\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get a shipment
+    # Get an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @return [InboundShipmentResponseV4]
+    def get_inbounding_shipment_v4(shipment_id, opts = {})
+      data, _status_code, _headers = get_inbounding_shipment_v4_with_http_info(shipment_id, opts)
+      data
+    end
+
+    # Get a shipment
+    # Get an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(InboundShipmentResponseV4, Integer, Hash)>] InboundShipmentResponseV4 data, response status code and response headers
+    def get_inbounding_shipment_v4_with_http_info(shipment_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.get_inbounding_shipment_v4 ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.get_inbounding_shipment_v4"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'InboundShipmentResponseV4'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.get_inbounding_shipment_v4",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#get_inbounding_shipment_v4\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get a list of shipments
+    # Get inbounding shipments based on the provided shipmentIds.
+    # @param shipment_ids [Array<Integer>] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<InboundShipmentResponseV4>]
+    def get_inbounding_shipments_v4(shipment_ids, opts = {})
+      data, _status_code, _headers = get_inbounding_shipments_v4_with_http_info(shipment_ids, opts)
+      data
+    end
+
+    # Get a list of shipments
+    # Get inbounding shipments based on the provided shipmentIds.
+    # @param shipment_ids [Array<Integer>] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Array<InboundShipmentResponseV4>, Integer, Hash)>] Array<InboundShipmentResponseV4> data, response status code and response headers
+    def get_inbounding_shipments_v4_with_http_info(shipment_ids, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.get_inbounding_shipments_v4 ...'
+      end
+      # verify the required parameter 'shipment_ids' is set
+      if @api_client.config.client_side_validation && shipment_ids.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_ids' when calling InboundsApi.get_inbounding_shipments_v4"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'shipmentIds'] = @api_client.build_collection_param(shipment_ids, :multi)
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<InboundShipmentResponseV4>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.get_inbounding_shipments_v4",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#get_inbounding_shipments_v4\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Request document for a shipment
+    # Request document for an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param document_option [String] 
+    # @param document_format [String] 
+    # @param [Hash] opts the optional parameters
+    # @return [DocumentResponse]
+    def get_transfer_document_v2(shipment_id, document_option, document_format, opts = {})
+      data, _status_code, _headers = get_transfer_document_v2_with_http_info(shipment_id, document_option, document_format, opts)
+      data
+    end
+
+    # Request document for a shipment
+    # Request document for an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param document_option [String] 
+    # @param document_format [String] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(DocumentResponse, Integer, Hash)>] DocumentResponse data, response status code and response headers
+    def get_transfer_document_v2_with_http_info(shipment_id, document_option, document_format, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.get_transfer_document_v2 ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.get_transfer_document_v2"
+      end
+      # verify the required parameter 'document_option' is set
+      if @api_client.config.client_side_validation && document_option.nil?
+        fail ArgumentError, "Missing the required parameter 'document_option' when calling InboundsApi.get_transfer_document_v2"
+      end
+      # verify the required parameter 'document_format' is set
+      if @api_client.config.client_side_validation && document_format.nil?
+        fail ArgumentError, "Missing the required parameter 'document_format' when calling InboundsApi.get_transfer_document_v2"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/document'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'documentOption'] = document_option
+      query_params[:'documentFormat'] = document_format
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'DocumentResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.get_transfer_document_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#get_transfer_document_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Begin asynchronous request quotes for a shipment
+    # Asynchronous endpoint for starting a request for quotes on an inbounding shipment. Returns success if request was accepted.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [InboundRateQuoteResult]
+    def init_quote_process_for_inbounding_shipment_v2(shipment_id, opts = {})
+      data, _status_code, _headers = init_quote_process_for_inbounding_shipment_v2_with_http_info(shipment_id, opts)
+      data
+    end
+
+    # Begin asynchronous request quotes for a shipment
+    # Asynchronous endpoint for starting a request for quotes on an inbounding shipment. Returns success if request was accepted.
+    # @param shipment_id [Integer] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [InboundShippingOption] :shipping_option 
+    # @return [Array<(InboundRateQuoteResult, Integer, Hash)>] InboundRateQuoteResult data, response status code and response headers
+    def init_quote_process_for_inbounding_shipment_v2_with_http_info(shipment_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.init_quote_process_for_inbounding_shipment_v2 ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.init_quote_process_for_inbounding_shipment_v2"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/quotes'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'shippingOption'] = opts[:'shipping_option'] if !opts[:'shipping_option'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'InboundRateQuoteResult'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.init_quote_process_for_inbounding_shipment_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#init_quote_process_for_inbounding_shipment_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Begin asynchronous request to buy a quote for a shipment
+    # Asynchronous endpoint for starting a request to buy quotes on an inbounding shipment. Returns success if request was accepted.
+    # @param shipment_id [Integer] 
+    # @param purchase_quotes_request [PurchaseQuotesRequest] 
+    # @param [Hash] opts the optional parameters
+    # @return [InboundRateBuyResultV2]
+    def init_quote_purchase_process_for_inbounding_shipment_v2(shipment_id, purchase_quotes_request, opts = {})
+      data, _status_code, _headers = init_quote_purchase_process_for_inbounding_shipment_v2_with_http_info(shipment_id, purchase_quotes_request, opts)
+      data
+    end
+
+    # Begin asynchronous request to buy a quote for a shipment
+    # Asynchronous endpoint for starting a request to buy quotes on an inbounding shipment. Returns success if request was accepted.
+    # @param shipment_id [Integer] 
+    # @param purchase_quotes_request [PurchaseQuotesRequest] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(InboundRateBuyResultV2, Integer, Hash)>] InboundRateBuyResultV2 data, response status code and response headers
+    def init_quote_purchase_process_for_inbounding_shipment_v2_with_http_info(shipment_id, purchase_quotes_request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.init_quote_purchase_process_for_inbounding_shipment_v2 ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.init_quote_purchase_process_for_inbounding_shipment_v2"
+      end
+      # verify the required parameter 'purchase_quotes_request' is set
+      if @api_client.config.client_side_validation && purchase_quotes_request.nil?
+        fail ArgumentError, "Missing the required parameter 'purchase_quotes_request' when calling InboundsApi.init_quote_purchase_process_for_inbounding_shipment_v2"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/quotes/buy'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(purchase_quotes_request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'InboundRateBuyResultV2'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.init_quote_purchase_process_for_inbounding_shipment_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#init_quote_purchase_process_for_inbounding_shipment_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Update a shipment
+    # Update an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param update_inbound_shipment_request_v3 [UpdateInboundShipmentRequestV3] 
+    # @param [Hash] opts the optional parameters
+    # @return [InboundShipmentResponseV3]
+    def update_inbounding_shipment_v3(shipment_id, update_inbound_shipment_request_v3, opts = {})
+      data, _status_code, _headers = update_inbounding_shipment_v3_with_http_info(shipment_id, update_inbound_shipment_request_v3, opts)
+      data
+    end
+
+    # Update a shipment
+    # Update an inbounding shipment.
+    # @param shipment_id [Integer] 
+    # @param update_inbound_shipment_request_v3 [UpdateInboundShipmentRequestV3] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(InboundShipmentResponseV3, Integer, Hash)>] InboundShipmentResponseV3 data, response status code and response headers
+    def update_inbounding_shipment_v3_with_http_info(shipment_id, update_inbound_shipment_request_v3, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: InboundsApi.update_inbounding_shipment_v3 ...'
+      end
+      # verify the required parameter 'shipment_id' is set
+      if @api_client.config.client_side_validation && shipment_id.nil?
+        fail ArgumentError, "Missing the required parameter 'shipment_id' when calling InboundsApi.update_inbounding_shipment_v3"
+      end
+      # verify the required parameter 'update_inbound_shipment_request_v3' is set
+      if @api_client.config.client_side_validation && update_inbound_shipment_request_v3.nil?
+        fail ArgumentError, "Missing the required parameter 'update_inbound_shipment_request_v3' when calling InboundsApi.update_inbounding_shipment_v3"
+      end
+      # resource path
+      local_var_path = '/logistics/api/unstable/inbounds/shipments/{shipmentId}/update'.sub('{' + 'shipmentId' + '}', CGI.escape(shipment_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json'])
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(update_inbound_shipment_request_v3)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'InboundShipmentResponseV3'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['BEARER']
+
+      new_options = opts.merge(
+        :operation => :"InboundsApi.update_inbounding_shipment_v3",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:PATCH, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: InboundsApi#update_inbounding_shipment_v3\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+  end
+end

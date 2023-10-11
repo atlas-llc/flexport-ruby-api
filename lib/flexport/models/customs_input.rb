@@ -132,7 +132,7 @@ module Flexport
         invalid_properties.push('invalid value for "origin_country", origin_country cannot be nil.')
       end
 
-      pattern = Regexp.new(^[0-9]{10}$)
+      pattern = Regexp.new(/^[0-9]{10}$/)
       if @tariff_code !~ pattern
         invalid_properties.push("invalid value for \"tariff_code\", must conform to the pattern #{pattern}.")
       end
@@ -157,7 +157,7 @@ module Flexport
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
       return false if @origin_country.nil?
-      return false if @tariff_code !~ Regexp.new(^[0-9]{10}$)
+      return false if @tariff_code !~ Regexp.new(/^[0-9]{10}$/)
       return false if @customs_value < 0.01
       return false if @description.to_s.length > 255
       return false if @description.to_s.length < 1
@@ -167,7 +167,7 @@ module Flexport
     # Custom attribute writer method with validation
     # @param [Object] tariff_code Value to be assigned
     def tariff_code=(tariff_code)
-      pattern = Regexp.new(^[0-9]{10}$)
+      pattern = Regexp.new(/^[0-9]{10}$/)
       if !tariff_code.nil? && tariff_code !~ pattern
         fail ArgumentError, "invalid value for \"tariff_code\", must conform to the pattern #{pattern}."
       end
